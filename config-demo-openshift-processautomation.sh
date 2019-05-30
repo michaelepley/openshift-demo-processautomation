@@ -15,12 +15,14 @@ REDHAT_SUBSCRIPTION_USER_POOL_ID=${REDHAT_SUBSCRIPTION_USER_MEPLEY_POOL_ID}
 
 CONTENT_SOURCE_DOCKER_IMAGES_RED_HAT_REGISTRY=registry.access.redhat.com
 
-#                                0     1        2      3          4      5            6
-DEMO_TARGET_OPENSHIFT_INSTANCES=(local rhsademo itpaas fortnebula rhtps-io nsabine-vrtx hattrick1)
+#                                0     1        2        3          4      5            6               7                       8                         9                   10        11        12
+DEMO_TARGET_OPENSHIFT_INSTANCES=(local rhsademo rhtps-io fortnebula itpaas nsabine-vrtx dan-redhatgovio mepley-demo-redhatgovio mepley-shimmy-redhatgovio geoint-redhatgovio  hattrick1 hattrick2 hattrick3)
+DEMO_TARGET_OPENSHIFT_INSTANCE=${DEMO_TARGET_OPENSHIFT_INSTANCES[8]}
 # Target ITPAAS
 # DEMO_TARGET_OPENSHIFT_INSTANCE=${DEMO_TARGET_OPENSHIFT_INSTANCES[2]}
 # Target RHTPSIO
-DEMO_TARGET_OPENSHIFT_INSTANCE=${DEMO_TARGET_OPENSHIFT_INSTANCES[4]}
+#DEMO_TARGET_OPENSHIFT_INSTANCE=${DEMO_TARGET_OPENSHIFT_INSTANCES[4]}
+DEMO_TARGET_OPENSHIFT_INSTANCE=${DEMO_TARGET_OPENSHIFT_INSTANCES[8]}
 
 # assume we don't need to expressly verify the clusters operational status
 : ${OPENSHIFT_CLUSTER_VERIFY_OPERATIONAL_STATUS:=false}
