@@ -1,0 +1,50 @@
+	stage 'Create initial App' {
+		sh "./setup-initial-app.sh"
+	}
+	stage 'Create dev, test, prod promotions' {
+		sh "./setup-promotion.sh"
+	}
+	stage 'Create custom test and prod s2i processes' {
+		sh "./setup-custom-s2i.sh"
+	}
+	stage 'Create canonical application endpoint' {
+		sh "./setup-canonical-app.sh"
+	}
+	stage 'Create forked App for fixing issues' {
+		sh "./setup-forked-app.sh"
+	}
+	stage 'Create test framework for evaluating application remediation' {
+		sh "./setup-fixed-test.sh"
+	}
+	stage 'Fix the application' {
+		sh "./setup-fixit.sh"
+	}
+	
+}
+
+pipeline {
+node('maven') {
+
+	environment {
+		OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME=registry.access.redhat.com/rhpam-7
+		OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGES=(rhpam70-businesscentral-openshift rhpam70-kieserver-openshift rhpam70-smartrouter-openshift rhpam70-businesscentral-monitoring-openshift rhpam70-controller-openshift )
+	}
+
+	stages {
+		stage('prerequisites') {
+			steps {
+				echo "	--> checking prerequisite images"
+				sh 'for OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE in ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGES[*]} ; do oc get is ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE} -n openshift >/dev/null 2>&1 || oc get is ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE} >/dev/null 2>&1 || oc import-image ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE} --from=${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME}/${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE} --confirm >/dev/null 2>&1 || { echo "FAILED: could not import decision central image " && exit 1 ; } ; done'
+			}
+			steps {
+				echo "	--> retagging image streams for convenience"
+				sh 'for OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGESTREAM in rhpam70-businesscentral-indexing-openshift rhpam70-businesscentral-monitoring-openshift rhpam70-businesscentral-openshift rhpam70-controller-openshift rhpam70-kieserver-openshift rhpam70-smartrouter-openshift ; do oc tag ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGESTREAM}:1.1 ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGESTREAM}:latest || echo "WARNING: could not retag image stream ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGESTREAM}" ; done '
+			}
+		}
+		stage('factory install templates') {
+			steps {
+			}
+		}
+	}
+	}
+}
