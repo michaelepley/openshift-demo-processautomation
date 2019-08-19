@@ -24,6 +24,14 @@ echo -n "Verifying configuration ready..."
 : ${OPENSHIFT_USER_REFERENCE?"missing configuration for OPENSHIFT_APPS"}
 : ${OPENSHIFT_OUTPUT_FORMAT?"missing configuration for OPENSHIFT_OUTPUT_FORMAT"}
 : ${CONTENT_SOURCE_DOCKER_IMAGES_RED_HAT_REGISTRY?"missing configuration for CONTENT_SOURCE_DOCKER_IMAGES_RED_HAT_REGISTRY"}
+
+: ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_VERSION_MAJOR?"missing configuration for OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_VERSION_MAJOR"}
+: ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_VERSION_MINOR?"missing configuration for OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_VERSION_MINOR"}
+: ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_VERSION_BRANCH?"missing configuration for OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_VERSION_BRANCH"}
+: ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_VERSION?"missing configuration for OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_VERSION"}
+: ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_REGISTRY?"missing configuration for OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_REGISTRY"}
+: ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_PREFIX?"missing configuration for OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_PREFIX"}
+: ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME?"missing configuration for OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME"}
 echo "OK"
 
 echo "Creating process automation manager demo application"
@@ -38,20 +46,31 @@ popd >/dev/null 2>&1
 [ "x${OPENSHIFT_CLUSTER_VERIFY_OPERATIONAL_STATUS}" != "xfalse" ] || { echo "	--> Verify the openshift cluster is working normally" && oc status -v >/dev/null || { echo "FAILED: could not verify the openshift cluster's operational status" && exit 1; } ; }
 
 echo "	--> checking prerequisites"
-OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME=registry.access.redhat.com/rhpam-7
-OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGES=(rhpam70-businesscentral-openshift rhpam70-kieserver-openshift rhpam70-smartrouter-openshift rhpam70-businesscentral-monitoring-openshift rhpam70-controller-openshift )
+# See https://access.redhat.com/terms-based-registry/#/token/mepley-service-account/openshift-secret
+# and download token at https://access.redhat.com/terms-based-registry/#/token/mepley-service-account/openshift-secret
+# login to docker at docker login -u='5318211|mepley-service-account' -p=eyJhbGciOiJSUzUxMiJ9.eyJzdWIiOiI1YmM5Y2FjMGFiZDY0ZTc2YWJhZjM4MTI2NjU4Y2VmMiJ9.pmuoGanCZNE8FO4jeZyum3pwgcYwOhglrBUYIqhORQY2y2ZWZG16Ld1NBS1C4yRkmvHNSm1My4oQf2d08H4_Vtai_AtkiJvwQKzeC_vNtpf4ttbxYNOFMVeHEX6uLbfsqTJ6bSpEl6t7di4WdcD4oDu7GwsU_fug-z7ey5gCplz7JhN5LGbNBH-HuSSeqcXagxGMhgTKwT_aLxLBL9sodDaAYcu4o2WReMFaRHzMnXAmzTWybW9w5DvfnfDMxRHJUYFbqy5CqL5VQTAVJBg7D7ony86lxW7mW0-VDCUrlauJUw_eG97zF1BhPxo8jJJAOpVGNgFmk3ITztijIOries_mqT0rNLbPbRDrzzaeyw4G4E-3c6QUuIEquHQxNFyijk_QfN7j5Ae-0uZh6bE32tkeDi2T5Qve-N66spbs5mY0VVYvHsoLP8v7_HMKXIuEkxqRCrjuK_2p4uUIP4l6UhY4pKtp-Z8azuaaAtCwoyk4SbviwHwTxNs6CCzkdANL3rqV5L81fIIy4jxevdtLGqfrIMlow75lMUzIvQVJ3DodVUvgzw_DQ_l-rspIEH-q88OFv689EkSjhl1a_Vkd3qx4BA7c1xtaMPV_8y8Z28Xx_z9q0zchQ7KTsBkm0kJTjRHqJrMHZ_Lgs0RKQbIvOX1_AYhFwbyXIZSCUscSj_o registry.redhat.io
+echo "		--> Red Hat image registry access via pull secret"
+oc get secret 5318211-mepley-service-account-pull-secret || { [ -f resources/mepley-service-account-secret.yaml ] && oc create -f resources/mepley-service-account-secret.yaml || { echo "FAILED: Could not create or validate Red Hat image registry access" && { return || exit ; } ; } ; }
+oc secrets link default 5318211-mepley-service-account-pull-secret --for=pull || { echo "FAILED: could not link necessary pull secret" && { return || exit ; } ; }
+
+echo "		--> Process Automation Manager Images"
+# todo: extract images from templates that are acquired, as that is the canonical source for images that are actually used
+# for rhpam70: OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGES=(${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME}-businesscentral-openshift ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME}-kieserver-openshift ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME}-smartrouter-openshift ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME}-businesscentral-monitoring-openshift ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME}-controller-openshift )
+OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGES=(${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME}-businesscentral-openshift ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME}-kieserver-openshift ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME}-smartrouter-openshift ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME}-businesscentral-monitoring-openshift ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME}-controller-openshift )
 for OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE in ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGES[*]} ; do
-	oc get is ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE} -n openshift >/dev/null 2>&1 || oc get is ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE} >/dev/null 2>&1 || oc import-image ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE} --from=${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME}/${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE} --confirm >/dev/null 2>&1 || { echo "FAILED: could not import decision central image " && exit 1 ; }
+	echo -n "		--> checking for ImageStream ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE} " && { oc get is ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE} -n openshift >/dev/null 2>&1 || oc get is ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE} >/dev/null 2>&1 || oc import-image ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE} --from=${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_REGISTRY}/${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_PREFIX}-${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_VERSION_MAJOR}/${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE} --confirm >/dev/null 2>&1 && echo "...Found" ; } || { echo "FAILED: could not import decision central image " && exit 1 ; }
 done
 
 echo "	--> retagging image streams for convenience"
-for OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGESTREAM in rhpam70-businesscentral-indexing-openshift rhpam70-businesscentral-monitoring-openshift rhpam70-businesscentral-openshift rhpam70-controller-openshift rhpam70-kieserver-openshift rhpam70-smartrouter-openshift ; do
+for OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGESTREAM in ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGES[*]} ; do
 	oc tag ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGESTREAM}:1.1 ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGESTREAM}:latest || echo "WARNING: could not retag image stream ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGESTREAM}"
 done
 
-echo "	--> creating the process automation manager template"
-# get the list of available templates from github via GET /repos/:owner/:repo/contents/:path -- > GET repos/jboss-container-images/rhpam-7-openshift-image/contents/templates
-readarray OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATES_DOWNLOADURLS <<< `curl -sS -X GET -H "Accept: application/vnd.github.v3+json" -H "Authorization: token ${GITHUB_AUTHORIZATION_TOKEN_OPENSHIFT_DEMO_PLAINTEXT:-$(echo ${GITHUB_AUTHORIZATION_TOKEN_OPENSHIFT_DEMO_CIPHERTEXT} | openssl enc -d -a -aes-256-cbc -k ${SCRIPT_ENCRYPTION_KEY})}" -H "Content-Type: application/json" -d '' "https://api.github.com/repos/jboss-container-images/rhpam-7-openshift-image/contents/templates" | jq -r '.[] | select( .type == "file" ) | .download_url' 2> /dev/null ` || { echo "FAILED: could not create fork of the application git repositories" && exit 1 ; }
+echo "	--> creating the process automation manager templates"
+# get the list of available branches from github via GET /repos/:owner/:repo/branches/:branch -- > GET repos/jboss-container-images/rhpam-7-openshift-image/branches/
+##readarray OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATES_DOWNLOADURLS <<< `curl -sS -X GET -H "Accept: application/vnd.github.v3+json" -H "Authorization: token ${GITHUB_AUTHORIZATION_TOKEN_OPENSHIFT_DEMO_PLAINTEXT:-$(echo ${GITHUB_AUTHORIZATION_TOKEN_OPENSHIFT_DEMO_CIPHERTEXT} | openssl enc -d -a -aes-256-cbc -k ${SCRIPT_ENCRYPTION_KEY})}" -H "Content-Type: application/json" -d '' "https://api.github.com/repos/jboss-container-images/rhpam-7-openshift-image/contents/templates" | jq -r '.[] | select( .type == "file" ) | .download_url' 2> /dev/null ` || { echo "FAILED: could not create fork of the application git repositories" && exit 1 ; }
+# get the list of available templates from github via GET /repos/:owner/:repo/contents/:path?ref=:ref -- > GET repos/jboss-container-images/rhpam-7-openshift-image/contents/templates?ref=7.5
+readarray OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATES_DOWNLOADURLS <<< `curl -sS -X GET -H "Accept: application/vnd.github.v3+json" -H "Authorization: token ${GITHUB_AUTHORIZATION_TOKEN_OPENSHIFT_DEMO_PLAINTEXT:-$(echo ${GITHUB_AUTHORIZATION_TOKEN_OPENSHIFT_DEMO_CIPHERTEXT} | openssl enc -d -a -aes-256-cbc -k ${SCRIPT_ENCRYPTION_KEY})}" -H "Content-Type: application/json" -d '' "https://api.github.com/repos/jboss-container-images/rhpam-7-openshift-image/contents/templates?ref=${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_VERSION_BRANCH}" | jq -r '.[] | select( .type == "file" ) | .download_url' 2> /dev/null ` || { echo "FAILED: could not create fork of the application git repositories" ; }
 
 echo "		--> available templates: ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATES_DOWNLOADURLS[*]} "
 mkdir -p resources
@@ -61,7 +80,7 @@ for OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATES_DOWNLOADURL in ${
 	OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATE=`curl -sS -w %{filename_effective} -O ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATES_DOWNLOADURL}`
 	echo "	--> ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATE}"
 	OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATE_NAME=`cat ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATE} | yq -r '.metadata.name'`
-	echo "		--> processing template ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATE_NAME}"
+	echo "		--> processing template truen ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATE_NAME}"
 	oc get template ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATE_NAME} -n openshift >/dev/null 2>&1 || oc get template ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATE_NAME} >/dev/null 2>&1 || oc create -f ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATE} -n openshift >/dev/null 2>&1 || oc create -f ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATE} >/dev/null 2>&1 || { echo "FAILED: Could not create ${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_TEMPLATE_NAME} template " && exit 1 ; }
 	
 	#	oc get template rhpam70-kieserver-s2i -n openshift || oc create -f https://raw.githubusercontent.com/jboss-container-images/rhpam-7-openshift-image/rhpam70/templates/rhpam70-kieserver-s2i.yaml -n openshift  || { echo "FAILED: Could not create process automation manager template " && exit 1 ; }
@@ -73,8 +92,6 @@ APPLICATION_PROCESS_AUTOMATION_MANAGER_AUTH_RESOURCES_NAME_ROOT=auth-pam-server
 APPLICATION_PROCESS_AUTOMATION_MANAGER_CLIENT_AUTH_RESOURCES_NAME_ROOT=auth-pam-client
 APPLICATION_KIESERVER_AUTH_RESOURCES_NAME_ROOT=auth-kie-server
 APPLICATION_KIESERVER_CLIENT_AUTH_RESOURCES_NAME_ROOT=auth-kie-client
-APPLICATION_SERVER_AUTH_RESOURCES_USERNAME=admin
-APPLICATION_SERVER_AUTH_RESOURCES_PASSWORD=password
 ## map to ? ${KIE_ADMIN_USER}/${KIE_ADMIN_PWD}
 
 echo "		--> Creating the necessary authentication objects for the process automation manager"
@@ -143,20 +160,12 @@ oc secrets link sa/kieserver-service-account secret/kieserver-secret
 
 echo "	--> Creating process automation manager from template "
 
-# KIE Parameters
-APPLICATION_KIE_ADMIN_USER=pamAdmin
-APPLICATION_KIE_ADMIN_PWD=redhatpam1!
-APPLICATION_KIE_SERVER_CONTROLLER_USER=kieserver
-APPLICATION_KIE_SERVER_CONTROLLER_PWD=kieserver1!
-APPLICATION_KIE_SERVER_USER=kieserver
-APPLICATION_KIE_SERVER_PWD=kieserver1!
-
 # oc new-app rhpam70-trial-ephemeral -p APPLICATION_NAME=tempserver -p IMAGE_STREAM_TAG=latest -p IMAGE_STREAM_NAMESPACE=${OPENSHIFT_PROJECT} || { echo 'FAILED: Could not create process automation manager (aka kie server) ' && exit 1 ; }
 oc get dc/process-automation-manager-kieserver || \
-oc new-app --template=rhpam70-authoring \
+oc new-app --template=${OPENSHIFT_APPLICATION_PROCESS_AUTOMATION_MANAGER_IMAGE_BASENAME}-authoring \
 			-p APPLICATION_NAME=${APPLICATION_NAME} \
 			-p IMAGE_STREAM_NAMESPACE=${OPENSHIFT_PROJECT} \
-			-p IMAGE_STREAM_TAG="1.1" \
+			-p IMAGE_STREAM_TAG="latest" \
 			-p KIE_ADMIN_USER=${APPLICATION_KIE_ADMIN_USER} \
 			-p KIE_ADMIN_PWD=${APPLICATION_KIE_ADMIN_PWD} \
 			-p KIE_SERVER_CONTROLLER_USER=${APPLICATION_KIE_SERVER_CONTROLLER_USER} \
@@ -173,6 +182,9 @@ oc new-app --template=rhpam70-authoring \
 			-p KIE_SERVER_HTTPS_PASSWORD=${APPLICATION_SERVER_AUTH_RESOURCES_PASSWORD} \
 			-p BUSINESS_CENTRAL_MEMORY_LIMIT="2Gi"
 
+# precise tag
+#			-p IMAGE_STREAM_TAG="1.1" \
+
 
 # default secrets
 #      -p BUSINESS_CENTRAL_HTTPS_SECRET="businesscentral-app-secret" \
@@ -180,7 +192,7 @@ oc new-app --template=rhpam70-authoring \
 
 # description: Default secret file with name 'jboss' and password 'mykeystorepass'
 
-
+# make sure the service is exposed
 # oc expose svc/rhpam70-kieserver
 
 echo "	--> Creating test client application "
